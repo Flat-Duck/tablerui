@@ -1,23 +1,21 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
 use App\Models\User;
-use Illuminate\View\View;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
+use Illuminate\Http\Response;
+use App\Http\Resources\UserResource;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\RedirectResponse;
+use App\Http\Resources\UserCollection;
 use App\Http\Requests\UserStoreRequest;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\UserUpdateRequest;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request): View
+    public function index(Request $request): UserCollection
     {
         $this->authorize('view-any', User::class);
 
@@ -25,28 +23,12 @@ class UserController extends Controller
 
         $users = User::search($search)
             ->latest()
-            ->paginate(5)
-            ->withQueryString();
+            ->paginate();
 
-        return view('app.users.index', compact('users', 'search'));
+        return new UserCollection($users);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(Request $request): View
-    {
-        $this->authorize('create', User::class);
-
-        $roles = Role::get();
-
-        return view('app.users.create', compact('roles'));
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(UserStoreRequest $request): RedirectResponse
+    public function store(UserStoreRequest $request): UserResource
     {
         $this->authorize('create', User::class);
 
@@ -70,40 +52,18 @@ class UserController extends Controller
 
         $user->syncRoles($request->roles);
 
-        return redirect()
-            ->route('users.edit', $user)
-            ->withSuccess(__('crud.common.created'));
+        return new UserResource($user);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Request $request, User $user): View
+    public function show(Request $request, User $user): UserResource
     {
         $this->authorize('view', $user);
 
-        return view('app.users.show', compact('user'));
+        return new UserResource($user);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Request $request, User $user): View
+    public function update(UserUpdateRequest $request, User $user): UserResource
     {
-        $this->authorize('update', $user);
-
-        $roles = Role::get();
-
-        return view('app.users.edit', compact('user', 'roles'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(
-        UserUpdateRequest $request,
-        User $user
-    ): RedirectResponse {
         $this->authorize('update', $user);
 
         $validated = $request->validated();
@@ -140,15 +100,10 @@ class UserController extends Controller
 
         $user->syncRoles($request->roles);
 
-        return redirect()
-            ->route('users.edit', $user)
-            ->withSuccess(__('crud.common.saved'));
+        return new UserResource($user);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Request $request, User $user): RedirectResponse
+    public function destroy(Request $request, User $user): Response
     {
         $this->authorize('delete', $user);
 
@@ -162,8 +117,6 @@ class UserController extends Controller
 
         $user->delete();
 
-        return redirect()
-            ->route('users.index')
-            ->withSuccess(__('crud.common.removed'));
+        return response()->noContent();
     }
 }
